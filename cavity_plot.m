@@ -1,0 +1,147 @@
+%% Determine Cavity height and calculate 3D volume from GPR picking
+%Christophe Ogier 1 september 2022
+clear all
+
+%% Path for data
+
+%initPar = read_init();
+%defaultdir = initPar.lastSgyFile; %inspired by segy processing (that is why segy is still mentionned here)
+%[fname,pname]=uigetfile({'*picks.txt'},'Choose txt file, ...',defaultdir,'MultiSelect','off'); %add 'pwd' instead of defaultdir if troubles
+path='C:/Users/christophe/Desktop/home/projects/2022_Rhone_cavity/';
+%plot background orthophoto
+path_photo=[path,'maps/0714/20220714_rhone_collapse_GPR'];
+ 
+
+%% load bedrock map
+%zbed=2210; %direct observations from borhole and within the uncertainties range of bedrock map of grab et al 2020
+%read DEM of bedrock elevation from Grab et al 2010
+DEMfile = [path,'maps/0824/RhoneBed/B43-03_glacierBed.tif'];
+BED = GRIDobj(DEMfile);
+corr=7; %bed elevation correction: the bedrock is underestimated by 10m at the boregole (direct measurement at the center of the cavity), we thus assume that this underestimation is uniform in the vicinity and apply a majoration of 10m
+%note on the bedrock map: the slope gradient might be respected witzh this
+%technique (5m elevation difference betwwen entrance and exit of the cavity)
+inc=0.5;
+
+%% TXT reading and gridd creation for roof thickness and cavity height (corrected from bed elevation)
+% 28 July
+[xcav1,ycav1,zsurf1,zcav1,th1,xq1,yq1,roof1,cavity1,h1,v1,v_err1] = cavity3D([path,'20220728_rhone/L2/20220728_Rhone_picks.txt'], BED,corr,inc);
+% 11 August
+[xcav2,ycav2,zsurf2,zcav2,th2,xq2,yq2,roof2,cavity2,h2,v2,v_err2] = cavity3D([path,'20220811_rhone/L2/20220811_Rhone_picks.txt'], BED,corr,inc);
+% 24 August
+[xcav3,ycav3,zsurf3,zcav3,th3,xq3,yq3,roof3,cavity3,h3,v3,v_err3] = cavity3D([path,'20220824_rhone/L2/20220824_Rhone_picks.txt'], BED,corr,inc);
+
+%% plot parameters
+subtitle_size=15;
+
+%% plot subplots Roof thickness and Cavity height
+
+plot_cavity('20220728');
+plot_cavity('20220811');
+plot_cavity('20220824');
+
+
+%% 3D plot cavity 
+%% 20220824 
+m = mesh(xq3,yq3,cavity3,'FaceAlpha','1');
+m.FaceColor = 'flat';
+hold on
+p=plot3(xcav3,ycav3,h3,'o','MarkerSize',1);
+p.Color='black'
+colorbar
+title('Cavity Height (m)')
+xlabel('Easting (m)')
+ylabel('Northing (m)')
+
+%% Roof elevation gridd:
+figure
+roof_elev3 = griddata(xcav3,ycav3,zcav3,xq3,yq3);
+m = mesh(xq3,yq3,roof_elev3,'FaceAlpha','1');
+m.FaceColor = 'flat';
+hold on
+p=plot3(xcav3,ycav3,zcav3,'o','MarkerSize',1);
+
+%% Function
+
+
+function plot_cavity(gprdate)
+
+%gprdate is a string with the date of the aquisition, ex: '20220824'
+
+path='C:/Users/christophe/Desktop/home/projects/2022_Rhone_cavity/';
+%plot background orthophoto
+path_photo=[path,'maps/0714/20220714_rhone_collapse_GPR'];
+
+
+%read DEM of bedrock elevation from Grab et al 2010
+DEMfile = [path,'maps/0824/RhoneBed/B43-03_glacierBed.tif'];
+BED = GRIDobj(DEMfile);
+corr=7; %bed elevation correction: the bedrock is underestimated by 10m at the boregole (direct measurement at the center of the cavity), we thus assume that this underestimation is uniform in the vicinity and apply a majoration of 10m
+%note on the bedrock map: the slope gradient might be respected witzh this
+%technique (5m elevation difference betwwen entrance and exit of the cavity)
+inc=0.5;
+
+if gprdate=='20220728'
+    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220728_rhone/L2/20220728_Rhone_picks.txt'], BED,corr,inc);
+elseif gprdate=='20220811'
+    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220811_rhone/L2/20220811_Rhone_picks.txt'], BED,corr,inc);
+elseif gprdate=='20220824'
+    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220824_rhone/L2/20220824_Rhone_picks.txt'], BED,corr,inc);
+else 
+    error('No GPR aquisition for this date')
+end
+
+    function plot_backgroundphoto(path)
+    %plot background orthophoto
+    [Xp, cmapp, refmat, ~]=geotiffread(path);
+      if size(Xp,3)==4
+            %get rid of X(:,:,4), otherwise mapshow will not work
+            Xp=Xp(:,:,1:3);
+        end
+    mapshow(Xp,cmapp,refmat);
+    axis equal
+    hold on
+    end
+
+%plot
+fig=figure('units','normalized','outerposition',[0 0 1 1]);%full screen figure for subplots
+subtitle_size=15;
+
+subplot(1,2,1);
+plot_backgroundphoto(path_photo)
+im = imagesc(xq(1,:),yq(:,1),roof,'AlphaData',~isnan(roof));axis equal;colorbar;
+set(gca,'YDir','normal')
+h = title(['Ice-roof thickness ',gprdate]);
+set(h,'Fontsize',subtitle_size);
+colormap(gca,flipud(viridis(100)))
+h1 = colorbar;
+%freezeColors
+hh1 = get(h1,'title');
+set(hh1,'string',['(m)'],'Fontsize',subtitle_size);
+hold on
+caxis([5 22]);
+% gpr traces
+scatter(xcav,ycav,1,th,'filled','MarkerEdgeColor','black')
+xlim([2672750 2672850]);
+ylim([1159580 1159660]);
+
+subplot(1,2,2);
+plot_backgroundphoto(path_photo)
+im = imagesc(xq(1,:),yq(:,1),cavity,'AlphaData',~isnan(cavity));axis equal;colorbar;
+set(gca,'YDir','normal')
+h = title(['Cavity height ',gprdate]);
+set(h,'Fontsize',subtitle_size);
+h = colorbar;
+hh = get(h,'title');
+set(hh,'string',['(m)'],'Fontsize',subtitle_size);
+colormap(gca,viridis(100))
+hold on
+caxis([0 15]);
+% gpr traces
+scatter(xcav,ycav,1,'filled','MarkerEdgeColor','black')
+text(2672785,1159585,['Cavity vol.= ',num2str(v),' ',char(177),' ',num2str(v_err),' m^3'],'BackgroundColor','w')
+xlim([2672750 2672850]);
+ylim([1159580 1159660]);
+
+sgtitle(gprdate) 
+saveas(fig,[path,'plot/',gprdate],'png')
+end
