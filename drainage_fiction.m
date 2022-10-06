@@ -13,8 +13,6 @@ w=1; %angular frequency (w=2*pi/1 day) -> 1h = 0.26
 phi=pi/2;
 h = hlake(x,A,w,phi);
 
-%% I HAVE TO IMPLEMENT REAL NIGHT Q PLATEAU. because it matters to compare discharge with real setting (14m/s instead of just 9 for instance).
-
 
 
 %% synthetic disharge from synthetic lake level
@@ -50,7 +48,7 @@ function h = hlake(x,A,w,phi)
 h_night=20; %in cm, level of lake by night
 % x is time
 % A is amplitude
-%w is angular frequency = 2pi/t. Here t is one day
+%w is angular frequency = 2pi/day. Here t is one day
 h = A/2*sin(w*x - phi)+A/2 + h_night; %+A/2 vertical shift to prevent negative numbers
 end
 
