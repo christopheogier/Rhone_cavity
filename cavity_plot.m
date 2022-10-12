@@ -16,7 +16,7 @@ path_photo=[path,'maps/0714/20220714_rhone_collapse_GPR'];
 %zbed=2210; %direct observations from borhole and within the uncertainties range of bedrock map of grab et al 2020
 %read DEM of bedrock elevation from Grab et al 2010
 DEMfile = [path,'maps/0824/RhoneBed/B43-03_glacierBed.tif'];
-BED = GRIDobj(DEMfile);
+BED = GRIDobj(DEMfile);  %think to add topotoolbox in matlab path
 corr=7; %bed elevation correction: the bedrock is underestimated by 10m at the boregole (direct measurement at the center of the cavity), we thus assume that this underestimation is uniform in the vicinity and apply a majoration of 10m
 %note on the bedrock map: the slope gradient might be respected witzh this
 %technique (5m elevation difference betwwen entrance and exit of the cavity)
@@ -59,6 +59,55 @@ m = mesh(xq3,yq3,roof_elev3,'FaceAlpha','1');
 m.FaceColor = 'flat';
 hold on
 p=plot3(xcav3,ycav3,zcav3,'o','MarkerSize',1);
+
+
+%% Plot volume times series
+
+v=[v1,v2,v3];
+x=[datetime(2022,07,28),datetime(2022,08,11),datetime(2022,08,24)];
+v_err=[v_err1 v_err2 v_err3];
+fig = errorbar(x,v,v_err,'LineStyle','--');
+xlim([datetime(2022,07,15) datetime(2022,09,01)])
+xlabel('Time');
+ylabel('Cavity volume (m^{3})')
+title('Cavity volume increase through time')
+fname='cavity volume time series';
+saveas(fig,[path,'plot/',fname],'png')
+
+%% Plot subsidence
+
+T =readcell([path,'stakes_subsidence_2022.txt'],'NumHeaderLines',1);
+
+t_visit = [datetime(2022,06,20),datetime(2022,7,4),datetime(2022,7,14),datetime(2022,7,28),datetime(2022,8,11),datetime(2022,8,27),datetime(2022,9,9),datetime(2022,10,7)];
+s0 = cell2mat(T(1,2:end)); %1 colomn is a header (stake number)
+s0(8) = -3.6; %Stake so was lost but surface lower by 3.6m (dGPS measurement). Melt was about 40 to 60cm since the last measurement. So let's say -3.6 +- 0.5
+s1 = cell2mat(T(2,2:end));
+s2 = cell2mat(T(3,2:end));
+s3 = cell2mat(T(4,2:end));
+s4 = cell2mat(T(5,2:end));
+s5 = cell2mat(T(6,2:end));
+s6 = cell2mat(T(7,2:end));
+
+fig = errorbar(t_visit,cumsum(s0),[0 0 0 0 0 0 0 0.5],'Marker','o');
+hold on
+plot(t_visit,cumsum(s1),'Marker','o');
+hold on
+plot(t_visit,cumsum(s2),'Marker','o');
+hold on
+plot(t_visit,cumsum(s3),'Marker','o');
+hold on
+plot(t_visit,cumsum(s4),'Marker','o');
+hold on
+plot(t_visit,cumsum(s5),'Marker','o');
+hold on
+plot(t_visit,cumsum(s6),'Marker','o');
+legend({'s0','s1','s2','s3','s4','s5','s6'},'location','southwest')
+xlim([datetime(2022,6,15) datetime(2022,10,15)])
+xlabel('Time');
+ylabel('Cumulative vertical stake displacement (m)')
+title('Vertical surface displacement (m)')
+fname='Vertical surface displacement';
+saveas(fig,[path,'plot/',fname],'png')
 
 %% Function
 
