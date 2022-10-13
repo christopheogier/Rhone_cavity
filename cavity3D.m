@@ -8,6 +8,7 @@ function [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D(gprdat
 %inc is the spacinf for interpolation in gridata
 
 [prof, xcav, ycav, zsurf, zcav, th] = textread(gprdata,'%f %f %f %f %f %f','headerlines',1);
+th = th-1; %correction from the height of the gpr -> not done so far!!
 [xq,yq] = meshgrid(min(xcav):inc:max(xcav),min(ycav):inc:max(ycav));
 roof = griddata(xcav,ycav,th,xq,yq); %roof thickness
 %project GPR profile over the bedrock to get bedrock exact elevation.
@@ -29,7 +30,7 @@ if contains(gprdata,'20220728')
     freq=50e6;
 elseif contains(gprdata,'20220811')
     freq=100e6;
-elseif contains(gprdata,'20220824')
+elseif contains(gprdata,'20220824') || contains(gprdata,'20221007')
     freq=250e6;
 else 
     error('No GPR aquisition for this date')

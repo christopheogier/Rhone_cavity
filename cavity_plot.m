@@ -9,7 +9,7 @@ clear all
 %[fname,pname]=uigetfile({'*picks.txt'},'Choose txt file, ...',defaultdir,'MultiSelect','off'); %add 'pwd' instead of defaultdir if troubles
 path='C:/Users/christophe/Desktop/home/projects/2022_Rhone_cavity/';
 %plot background orthophoto
-path_photo=[path,'maps/0714/20220714_rhone_collapse_GPR'];
+
  
 
 %% load bedrock map
@@ -29,15 +29,20 @@ inc=0.5;
 [xcav2,ycav2,zsurf2,zcav2,th2,xq2,yq2,roof2,cavity2,h2,v2,v_err2] = cavity3D([path,'20220811_rhone/L2/20220811_Rhone_picks.txt'], BED,corr,inc);
 % 24 August
 [xcav3,ycav3,zsurf3,zcav3,th3,xq3,yq3,roof3,cavity3,h3,v3,v_err3] = cavity3D([path,'20220824_rhone/L2/20220824_Rhone_picks.txt'], BED,corr,inc);
+% 7 October
+[xcav4,ycav4,zsurf4,zcav4,th4,xq4,yq4,roof4,cavity4,h4,v4,v_err4] = cavity3D([path,'20221007_rhone/L2/20221007_Rhone_picks.txt'], BED,corr,inc);
 
 %% plot parameters
 subtitle_size=15;
 
 %% plot subplots Roof thickness and Cavity height
 
+%not yet coded: plot BH measurement with roof thickness map
+
 plot_cavity('20220728');
 plot_cavity('20220811');
 plot_cavity('20220824');
+plot_cavity('20221007');
 
 
 %% 3D plot cavity 
@@ -53,7 +58,7 @@ xlabel('Easting (m)')
 ylabel('Northing (m)')
 
 %% Roof elevation gridd:
-figure
+
 roof_elev3 = griddata(xcav3,ycav3,zcav3,xq3,yq3);
 m = mesh(xq3,yq3,roof_elev3,'FaceAlpha','1');
 m.FaceColor = 'flat';
@@ -63,14 +68,15 @@ p=plot3(xcav3,ycav3,zcav3,'o','MarkerSize',1);
 
 %% Plot volume times series
 
-v=[v1,v2,v3];
-x=[datetime(2022,07,28),datetime(2022,08,11),datetime(2022,08,24)];
-v_err=[v_err1 v_err2 v_err3];
+v=[v1,v2,v3,v4];
+x=[datetime(2022,07,28),datetime(2022,08,11),datetime(2022,08,24),datetime(2022,10,7)];
+v_err=[v_err1 v_err2 v_err3 v_err4];
+figure();
 fig = errorbar(x,v,v_err,'LineStyle','--');
-xlim([datetime(2022,07,15) datetime(2022,09,01)])
+xlim([datetime(2022,07,15) datetime(2022,10,10)])
 xlabel('Time');
 ylabel('Cavity volume (m^{3})')
-title('Cavity volume increase through time')
+title('Cavity volume time serie')
 fname='cavity volume time series';
 saveas(fig,[path,'plot/',fname],'png')
 
@@ -118,7 +124,7 @@ function plot_cavity(gprdate)
 
 path='C:/Users/christophe/Desktop/home/projects/2022_Rhone_cavity/';
 %plot background orthophoto
-path_photo=[path,'maps/0714/20220714_rhone_collapse_GPR'];
+path_photo=[path,'maps/0824/20220824_rhone_collapse_dop_cogier.tif'];
 
 
 %read DEM of bedrock elevation from Grab et al 2010
@@ -135,6 +141,8 @@ elseif gprdate=='20220811'
     [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220811_rhone/L2/20220811_Rhone_picks.txt'], BED,corr,inc);
 elseif gprdate=='20220824'
     [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220824_rhone/L2/20220824_Rhone_picks.txt'], BED,corr,inc);
+elseif gprdate=='20221007'
+    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20221007_rhone/L2/20221007_Rhone_picks.txt'], BED,corr,inc);
 else 
     error('No GPR aquisition for this date')
 end
@@ -167,9 +175,14 @@ h1 = colorbar;
 hh1 = get(h1,'title');
 set(hh1,'string',['(m)'],'Fontsize',subtitle_size);
 hold on
-caxis([5 22]);
+caxis([1 23]);
 % gpr traces
 scatter(xcav,ycav,1,th,'filled','MarkerEdgeColor','black')
+% plot minimum thickness
+[a,b] = find(roof==min(min(roof)));
+scatter(xq(1,b),yq(a,1),'filled','MarkerEdgeColor','red');
+format short g %to remove useless decimals 0 in the following
+text(2672785,1159585,['Min. thickness= ',num2str(round(min(min(roof)),2)),' m'],'BackgroundColor','w')
 xlim([2672750 2672850]);
 ylim([1159580 1159660]);
 
