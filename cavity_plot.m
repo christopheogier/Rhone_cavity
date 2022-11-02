@@ -39,14 +39,15 @@ subtitle_size=15;
 
 %not yet coded: plot BH measurement with roof thickness map
 
-plot_cavity('20220728');
-plot_cavity('20220811');
-plot_cavity('20220824');
+%plot_cavity('20220728');
+%plot_cavity('20220811');
+%plot_cavity('20220824');
 plot_cavity('20221007');
 
 
 %% 3D plot cavity 
 %% 20220824 
+figure()
 m = mesh(xq3,yq3,cavity3,'FaceAlpha','1');
 m.FaceColor = 'flat';
 hold on
