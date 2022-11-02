@@ -1,6 +1,7 @@
 %Syntethic simulation of Qout at the Rhone lake. We apply a infinitely fast
 %drainage of a 5000m3 water pocket (WP) at the glacier snout. The stage/discharge relationship was calculated by the student of the field 
 %course in August 2022.
+clear all
 
 A_lake=313868; %m2
 wp_vol=5000;%m3, from GPR measurmeent July 2022 (before lamellas collapse)
@@ -26,78 +27,60 @@ phi=pi/2;
 q0=5; %level in cm during night
 v_wp = 5000; %volume of the water pocket, in m3
 t0 = 10*3600; %time of outburst, in s
-qin = q_input(t,A,w,phi,q0,t0,v_wp);
+% Qin with WP outburst infinitely fast
+qin1 = q_input(t,A,w,phi,q0,t0,v_wp,1);
+% Qin with WP outburst infinitely fast
+qin2 = q_input(t,A,w,phi,q0,t0,v_wp,3600);
+% Qin without outburst
+qin_ref = q_input(t,A,w,phi,q0,t0,0,0);
 
-%% Lake level with WP drainage with exponential volume decrease (NO VOLUME CONSERVATION, i.e the volume is a not a explicit parameter, just the drainage half-time)
+%% Qout computation
+qout1 = q_output(t,qin1,A);
+qout2 = q_output(t,qin2,A);
+qout_ref = q_output(t,qin_ref,A); %Qout without WP outburst
 
-tho = 4*3600; %half life time, in s
-h_burst = hlake_burst(h,t,t0,tho,hwp);
 
-%% synthetic disharge from synthetic lake level
-qout_ref = qlake(h);
-qout = qlake(h_burst);
+%% Drainage volume inferred by area between qout_ref and qout (this should be v_wp)
 
-%% Drainage volume inferred by area between qout_ref and qout (this should be 5000m2)
-
-V = inc*trapz(qout-qout_ref); %integration by default is with units. We multiply by inc to have a volume
-
-% %% Infinitely fast drainage of the water pocket: a dirac distribution
-% t0 = 2; %timing of the outburst
-% y = dirac(t - t0);
-% idx = y == Inf; % find Inf
-% y(idx) = 1 * hwp ;     % set Inf to finite value
-% stem(t,y)
-
+V = inc*trapz(qout2-qout_ref); %integration by default is with units. We multiply by inc to have a volume
 
 
 %% plot
 
 %plot Qin
 figure
-plot(t,qin);
-title('Discharge Q_{in} (m^{3}.s^{-1})')
+subplot(1,2,1);
+plot(t,qin_ref)
+hold on
+plot(t,qin1);
+hold on
+plot(t,qin2);
+x2 = [t, fliplr(t)];
+inBetween = [qin_ref, fliplr(qin2)];
+fill(x2, inBetween, 'r');
+title('Lake inflow (m^{3}.s^{-1})')
 xlabel('time (1 day)')
 set(gca,'XTickLabel',[]);
 ylabel('Q_{in} (m^{3}.s^{-1})')
 xlim([0 day])
 ylim([0 20]);
 
-
-%% plot lake level
-figure
-subplot(1,2,1);
-plot(t,h);
-hold on
-plot(t,h_burst)
-x2 = [t, fliplr(t)];
-inBetween = [h, fliplr(h_burst)];
-fill(x2, inBetween, 'r');
-title('Lake level (cm)')
-xlabel('time (1 day)')
-set(gca,'XTickLabel',[]);
-ylabel('Lake height above spillway (cm)')
-line([t0 t0],[hlake(t0,A,w,phi,h0) hlake(t0,A,w,phi,h0)+hwp],'Color','r','LineWidth',1);
-text(t0,65,'WP \newline outburst','Color','r');
-xlim([0 day])
-ylim([0 70]);
-
-%plot lake discharge
+% plot Qout
 subplot(1,2,2);
 plot(t,qout_ref);
 hold on;
-plot(t,qout);
-plot(t,h_burst)
+plot(t,qout1);
+hold on
+plot(t,qout2);
 x2 = [t, fliplr(t)];
-inBetween = [qout_ref, fliplr(qout)];
+inBetween = [qout_ref, fliplr(qout2)];
 fill(x2, inBetween, 'r');
-title('Lake discharge (m^{3}s^{-1})')
+title('Lake outflow (m^{3}s^{-1})')
 xlabel('time (1 day)')
 set(gca,'XTickLabel',[]);
-ylabel('lake outflow discharge (m^{3}s^{-1})')
-ylim([0 15])
+ylabel('Q_{out} (m^{3}s^{-1})')
+ylim([0 50])
 xlim([0 day])
-text(8*3600,7,['WP volume = \newline',num2str(round(V)),'m^{3}'],'Color','r');
-
 
 
 
@@ -111,15 +94,21 @@ h = A/2*sin(w*t - phi)+A/2 + h0; %+A/2 vertical shift to prevent negative number
 end
 
 %% Syntetic Qin function (sinusoidal)
-function qin = q_input(t,A,w,phi,q0,t0,v_wp)
+function qin = q_input(t,A,w,phi,q0,t0,v_wp,tho)
 %q0 (cm) is the input discharge by night
 % x is time
 % A is amplitude
 %w is angular frequency = 2pi/day. Here t is one day
 %to is the time where the outburst occur (in s) 
 %v_wp is the water pocket volume
+%tho is the duration of the WP drainage, in s
 qin = A/2*sin(w*t - phi)+A/2 + q0; %+A/2 vertical shift to prevent negative numbers
-qin(t0)=qin(t0) + v_wp; % HERE the drainage in infinitively fast. We can later introduce a second sinusoid that consider a smotther drainage (with Qmax inferred by Walder and Costa (1996) empirical formula, for instance) 
+% we now add the outburst contribution. if tho=1 then the drainage in infinitely fast
+for i = 1:length(t)
+if t(i) >= t0 && t(i) < t0+tho
+    qin(i)= qin(i) + v_wp/tho; % HERE the drainage in infinitively fast. We can later introduce a second sinusoid that consider a smotther drainage (with Qmax inferred by Walder and Costa (1996) empirical formula, for instance) 
+end
+end
 end
 
 %% Qout as a function of Qin and h
@@ -129,15 +118,14 @@ function qout = q_output(t,qin,A)
 % qin in the input discharge (including outburst) over t
 % A is the lake area, in m2
 hi = 0.2; % Initialization of lake level above spillway at t0, in m
-v0 = A*h0; % Initialization of lake volume at t0, in m3
-dt = length(t)-t(end); % increment in time
-qout = []
+vi = A*hi; % Initialization of lake volume at t0, in m3
+dt = length(t)-t(end); % increment in time, here 1s
+qout = hi/0.044; %Qout_0
 % loop over time
-for i = 1:length(t)
+for i = 2:length(t)
     q = hi/0.044; % linear relation ship determined by salt dilution experiment ( Qout = (z_lake-2208.98)/0.044 with z_spillwaz=2208.98)
-    Qin = qin(t);
-    v = v0 + qin(t)*dt - q(t)*dt
-    hi = v^(1/3)
+    vi = vi + qin(i)*dt - q*dt;
+    hi = vi^(1/3)/A;
     qout = [qout, q]; % increment qout
 end
 end
