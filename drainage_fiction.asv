@@ -3,85 +3,72 @@
 %course in August 2022.
 clear all
 
-A_lake=313868; %m2
+%% definition
+path='C:/Users/christophe/Desktop/home/projects/2022_Rhone_cavity/';
+A=313868; %m2
 wp_vol=5000;%m3, from GPR measurmeent July 2022 (before lamellas collapse)
-hwp=wp_vol/A_lake*100; %in cm, the lake height due to infinitely fast drainage of the WP
+hwp=wp_vol/A*100; %in cm, the lake height due to infinitely fast drainage of the WP
 
 %% syntehetic sinusoidal-shape lake kevel 
 day=24*3600; %in s
 inc = 1; %time increment in s
 t=[0:inc:day]; %time in hour
-A=40;%amplitude: 40cm for lake elevation variation
+a=40;%amplitude: 40cm for lake elevation variation
 w=2*pi/day; %angular frequency (w=2*pi/1 day) 
 phi=pi/2;
 h0=20; %level in cm during night
-h = hlake(t,A,w,phi,h0);
+h = hlake(t,a,w,phi,h0);
 
 %% syntehetic sinusoidal-shape Qin
 day=24*3600; %in s
 inc = 1; %time increment in s
 t=[0:inc:day]; %time in hour
-A=10;%amplitude: 10m3/s at the daily peak
+a=10;%amplitude: 10m3/s at the daily peak
 w=2*pi/day; %angular frequency (w=2*pi/1 day) 
 phi=pi/2;
 q0=5; %level in cm during night
 v_wp = 5000; %volume of the water pocket, in m3
 t0 = 10*3600; %time of outburst, in s
 % Qin with WP outburst infinitely fast
-qin1 = q_input(t,A,w,phi,q0,t0,v_wp,1);
+qin1 = q_input(t,a,w,phi,q0,t0,v_wp,1);
 % Qin with WP outburst infinitely fast
-qin2 = q_input(t,A,w,phi,q0,t0,v_wp,3600);
+qin2 = q_input(t,a,w,phi,q0,t0,v_wp,3600);
 % Qin without outburst
-qin_ref = q_input(t,A,w,phi,q0,t0,0,0);
+qin_ref = q_input(t,a,w,phi,q0,t0,0,0);
 
 %% Qout computation
-qout1 = q_output(t,qin1,A);
+qout1 = q_output(t,qin1,A);%WP outburst infinitely fast
 qout2 = q_output(t,qin2,A);
 qout_ref = q_output(t,qin_ref,A); %Qout without WP outburst
 
 
 %% Drainage volume inferred by area between qout_ref and qout (this should be v_wp)
 
-V = inc*trapz(qout-qout_ref); %integration by default is with units. We multiply by inc to have a volume
+V = inc*trapz(qout2-qout_ref); %integration by default is with units. We multiply by inc to have a volume
 
 
 %% plot
 
-%plot Qin
-figure
-subplot(1,2,1);
-plot(t,qin_ref)
-hold on
+
+fig=figure
 plot(t,qin1);
+ylim([0 17]);
 hold on
-plot(t,qin2);
-x2 = [t, fliplr(t)];
-inBetween = [qout_ref, fliplr(qin2)];
-fill(x2, inBetween, 'r');
-title('Lake inflow (m^{3}.s^{-1})')
-xlabel('time (1 day)')
-set(gca,'XTickLabel',[]);
-ylabel('Q_{in} (m^{3}.s^{-1})')
-xlim([0 day])
-ylim([0 20]);
-
-% plot Qout
-subplot(1,2,2);
 plot(t,qout_ref);
-hold on;
-plot(t,qout1);
 hold on
-plot(t,qout2);
+plot(t,qout1);
 x2 = [t, fliplr(t)];
-inBetween = [qout_ref, fliplr(qout2)];
+inBetween = [qout_ref, fliplr(qout1)];
 fill(x2, inBetween, 'r');
-title('Lake outflow (m^{3}s^{-1})')
+title('Lake balance')
 xlabel('time (1 day)')
 set(gca,'XTickLabel',[]);
-ylabel('Q_{out} (m^{3}s^{-1})')
-ylim([0 50])
+ylabel('Discharge (m^{3}.s^{-1})')
 xlim([0 day])
-
+ylim([0 17]);
+legend('Q_{in}','Q_{out}')
+fname=''
+saveas(fig,[path,'plot/',fname],'png')
 
 
 %% Syntetic lake level function
@@ -118,14 +105,14 @@ function qout = q_output(t,qin,A)
 % qin in the input discharge (including outburst) over t
 % A is the lake area, in m2
 hi = 0.2; % Initialization of lake level above spillway at t0, in m
-vi = A*hi; % Initialization of lake volume at t0, in m3
+vi = A*hi; % Initialization of lake volume at t0, in m3. Given the small dh we consider vertical lake walls
 dt = length(t)-t(end); % increment in time, here 1s
 qout = hi/0.044; %Qout_0
 % loop over time
 for i = 2:length(t)
     q = hi/0.044; % linear relation ship determined by salt dilution experiment ( Qout = (z_lake-2208.98)/0.044 with z_spillwaz=2208.98)
     vi = vi + qin(i)*dt - q*dt;
-    hi = vi^(1/3)/A;
+    hi = vi/A;
     qout = [qout, q]; % increment qout
 end
 end

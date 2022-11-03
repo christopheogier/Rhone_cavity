@@ -77,7 +77,7 @@ fig = errorbar(x,v,v_err,'LineStyle','--');
 xlim([datetime(2022,07,15) datetime(2022,10,10)])
 xlabel('Time');
 ylabel('Cavity volume (m^{3})')
-title('Cavity volume time serie')
+title('Cavity volume time series')
 fname='cavity volume time series';
 saveas(fig,[path,'plot/',fname],'png')
 
@@ -87,7 +87,7 @@ T =readcell([path,'stakes_subsidence_2022.txt'],'NumHeaderLines',1);
 
 t_visit = [datetime(2022,06,20),datetime(2022,7,4),datetime(2022,7,14),datetime(2022,7,28),datetime(2022,8,11),datetime(2022,8,27),datetime(2022,9,9),datetime(2022,10,7)];
 s0 = cell2mat(T(1,2:end)); %1 colomn is a header (stake number)
-s0(8) = -3.6; %Stake so was lost but surface lower by 3.6m (dGPS measurement). Melt was about 40 to 60cm since the last measurement. So let's say -3.6 +- 0.5
+s0(8) = -3.1; %Stake so was lost but surface lower by 3.6m (dGPS measurement). Melt was about 40 to 60cm since the last measurement. So let's say -3.1 +- 0.2 (0.2 is the uncertainties on the melt
 s1 = cell2mat(T(2,2:end));
 s2 = cell2mat(T(3,2:end));
 s3 = cell2mat(T(4,2:end));
@@ -95,7 +95,7 @@ s4 = cell2mat(T(5,2:end));
 s5 = cell2mat(T(6,2:end));
 s6 = cell2mat(T(7,2:end));
 
-fig = errorbar(t_visit,cumsum(s0),[0 0 0 0 0 0 0 0.5],'Marker','o');
+fig = errorbar(t_visit,cumsum(s0),[0 0 0 0 0 0 0 0.2],'Marker','o');
 hold on
 plot(t_visit,cumsum(s1),'Marker','o');
 hold on
