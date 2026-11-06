@@ -16,3 +16,14 @@ Coordinates are Swiss LV95; lengths are in metres. The model uses a 0.5 m grid a
 GPR data are found in S:\glazio\projects\88018-VAW_Rhone_collapse_feature\03_data\9_GPR. Bedrock elevation map is found in Grab et al., 2021. 
 
 
+
+## MAT-file variables
+
+Suffixes `1`–`4` refer to 28.07.2022, 11.08.2022, 24.08.2022 and 07.10.2022, respectively.
+
+- `xq*`, `yq*`: grid coordinates; `cavity*`: height above bedrock; `roof*`: ice-roof thickness (all in metres).
+- `roof_elev{1:4}`: interpolated picked cavity-roof elevations.
+- `xcav*`, `ycav*`, `zsurf*`, `zcav*`: pick coordinates and surface/cavity-roof elevations; `th*`, `h*`: corrected thickness and cavity height at picks.
+- `v*`, `v_err*`: volume and uncertainty (m³). `survey_dates`, `inc` and `corr`: dates, grid spacing and bed correction.
+
+Example: `load('results/cavity_model.mat'); surf(xq1,yq1,cavity1)` plots the first survey's cavity height.
