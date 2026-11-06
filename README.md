@@ -6,7 +6,7 @@ GPR acquisition dates over the cavity: 28.07.2022, 11.08.2022, 24.08.2022 and 07
 
 Run `cavity_plot.m` in MATLAB. Outputs are saved in `/scratch-3/cogier/data/Rhone/cavity/`(change path). 
 
-- `cavity_model.mat`: grids, picks, cavity heights, roof thicknesses and volumes for all four surveys.
+- `results/cavity_model.mat` (repository copy): grids, picks, cavity heights, roof thicknesses and volumes for all four surveys.
 - `plot/cavity_height_3D.png`: four 3D views of height above bedrock.
 - `plot/cavity_height_maps.png`: four height maps viewed from above.
 - `plot/roof_thickness_maps.png`: four ice-roof thickness maps.
