@@ -40,45 +40,79 @@ inc=0.5;
 % xq*/yq* are mesh coordinates; cavity* is height and roof* is ice thickness.
 save(fullfile(outputdir,'cavity_model.mat'));
 
-%% plot parameters
-subtitle_size=15;
+%% Compare the four surveys with common axes and colour scales.
+survey_dates = datetime([2022 2022 2022 2022],[7 8 8 10],[28 11 24 7]);
+survey_dates.Format = 'dd MMM yyyy';
+% Automatically date every exported figure, in addition to acquisition dates.
+plot_stamp = ['Generated ',char(datetime('now','TimeZone','Europe/Zurich', ...
+    'Format','yyyy-MM-dd HH:mm z'))];
+X = {xq1,xq2,xq3,xq4}; Y = {yq1,yq2,yq3,yq4};
+heights = {cavity1,cavity2,cavity3,cavity4};
+roofs = {roof1,roof2,roof3,roof4};
+px = {xcav1,xcav2,xcav3,xcav4}; py = {ycav1,ycav2,ycav3,ycav4};
+pz = {zcav1,zcav2,zcav3,zcav4};
+volumes = [v1 v2 v3 v4]; errors = [v_err1 v_err2 v_err3 v_err4];
+roof_elev = cell(1,4);
+for k = 1:4
+    roof_elev{k} = griddata(px{k},py{k},pz{k},X{k},Y{k});
+end
+roof_elev3 = roof_elev{3}; % retain the existing saved variable
+save(fullfile(outputdir,'cavity_model.mat'),'roof_elev','roof_elev3','survey_dates','-append');
 
-%% plot subplots Roof thickness and Cavity height
+plot_surveys(X,Y,heights,px,py,survey_dates,volumes,errors, ...
+    'Height above bedrock (m)',false,plotdir,'cavity_height_maps',plot_stamp);
+plot_surveys(X,Y,roofs,px,py,survey_dates,[],[], ...
+    'Ice-roof thickness (m)',false,plotdir,'roof_thickness_maps',plot_stamp);
+plot_surveys(X,Y,heights,px,py,survey_dates,volumes,errors, ...
+    'Height above bedrock (m)',true,plotdir,'cavity_height_3D',plot_stamp);
+plot_surveys(X,Y,roof_elev,px,py,survey_dates,[],[], ...
+    'Roof elevation (m)',true,plotdir,'roof_elevation_3D',plot_stamp);
 
-%not yet coded: plot BH measurement with roof thickness map
-
-%plot_cavity('20220728');
-%plot_cavity('20220811');
-%plot_cavity('20220824');
-plot_cavity('20221007',plotdir);
-
-
-%% 3D plot cavity 
-%% 20220824 
-figure()
-m = mesh(xq3,yq3,cavity3,'FaceAlpha','1');
-m.FaceColor = 'flat';
-hold on
-p=plot3(xcav3,ycav3,h3,'o','MarkerSize',1);
-p.Color='black'
-colorbar
-title('Cavity Height (m)')
-xlabel('Easting (m)')
-ylabel('Northing (m)')
-
-saveas(gcf,fullfile(plotdir,'20220824_cavity_height.png'));
-
-%% Roof elevation gridd:
-
-roof_elev3 = griddata(xcav3,ycav3,zcav3,xq3,yq3);
-m = mesh(xq3,yq3,roof_elev3,'FaceAlpha','1');
-m.FaceColor = 'flat';
-hold on
-p=plot3(xcav3,ycav3,zcav3,'o','MarkerSize',1);
-
-
-saveas(gcf,fullfile(plotdir,'20220824_roof_elevation.png'));
-save(fullfile(outputdir,'cavity_model.mat'),'roof_elev3','-append');
+%% Colleague handoff: bed raster, four dated 3D plots and explicit geometry.
+handoffdir = fullfile(outputdir,'handoff');
+if ~isfolder(handoffdir), mkdir(handoffdir); end
+copyfile(DEMfile,fullfile(handoffdir,'B43-03_GlacierBed.tif'));
+surface_z = {zsurf1,zsurf2,zsurf3,zsurf4};
+thickness = {th1,th2,th3,th4};
+pick_height = {h1,h2,h3,h4};
+geometry = struct([]);
+for k = 1:4
+    geometry(k).date = survey_dates(k);
+    geometry(k).easting_m = X{k};
+    geometry(k).northing_m = Y{k};
+    geometry(k).height_above_bedrock_m = heights{k};
+    geometry(k).ice_roof_thickness_m = roofs{k};
+    % Use the same corrected bed samples and interpolation as cavity3D.
+    bed_samples = surface_z{k}-thickness{k}-pick_height{k};
+    geometry(k).bed_elevation_m = griddata(px{k},py{k},bed_samples,X{k},Y{k});
+    geometry(k).cavity_roof_elevation_m = geometry(k).bed_elevation_m+heights{k};
+    geometry(k).valid = isfinite(heights{k});
+    geometry(k).volume_m3 = volumes(k);
+    geometry(k).volume_uncertainty_m3 = errors(k);
+    fig = figure('Color','w','Position',[100 100 1100 800]);
+    surf(X{k},Y{k},heights{k},'EdgeColor','none');
+    view(40,30); grid on; box on;
+    xlim([min(cellfun(@(x) min(x(:)),X)),max(cellfun(@(x) max(x(:)),X))]);
+    ylim([min(cellfun(@(y) min(y(:)),Y)),max(cellfun(@(y) max(y(:)),Y))]);
+    zlim([min(cellfun(@(z) min(z(:),[],'omitnan'),heights)), ...
+          max(cellfun(@(z) max(z(:),[],'omitnan'),heights))]);
+    clim(zlim); colormap(viridis(100));
+    cb = colorbar; cb.Label.String = 'Height above bedrock (m)';
+    xlabel('Easting (m)'); ylabel('Northing (m)');
+    zlabel('Height above bedrock (m)');
+    title({['Cavity | ',char(survey_dates(k))], ...
+        sprintf('Volume: %.0f %s %.0f m^{3}',volumes(k),char(177),errors(k)),plot_stamp});
+    exportgraphics(fig,fullfile(handoffdir, ...
+        [char(string(survey_dates(k),'yyyyMMdd')),'_cavity_3D.png']),'Resolution',180);
+end
+metadata.crs = 'Swiss LV95 / CH1903+ (EPSG:2056); verify source vertical datum separately';
+metadata.grid_spacing_m = inc;
+metadata.bed_correction_m = corr;
+metadata.gpr_height_correction_m = 1;
+metadata.generated = plot_stamp;
+save(fullfile(handoffdir,'cavity_geometry.mat'),'geometry','metadata');
+copyfile(fullfile(fileparts(mfilename('fullpath')),'HANDOFF_README.md'), ...
+    fullfile(handoffdir,'README.md'));
 
 %% Plot volume times series
 
@@ -86,11 +120,13 @@ v=[v1,v2,v3,v4];
 x=[datetime(2022,07,28),datetime(2022,08,11),datetime(2022,08,24),datetime(2022,10,7)];
 v_err=[v_err1 v_err2 v_err3 v_err4];
 figure();
-fig = errorbar(x,v,v_err,'LineStyle','--');
+fig = errorbar(x,v,v_err,'LineStyle','--','Marker','o','LineWidth',1.5);
+grid on
+xticks(x); xtickformat('dd MMM yyyy');
 xlim([datetime(2022,07,15) datetime(2022,10,10)])
 xlabel('Time');
 ylabel('Cavity volume (m^{3})')
-title('Cavity volume time series')
+title({'Cavity volume | 28 Jul - 07 Oct 2022',plot_stamp})
 fname='cavity volume time series';
 saveas(fig,fullfile(plotdir,fname),'png')
 
@@ -110,6 +146,7 @@ s4 = cell2mat(T(5,2:end));
 s5 = cell2mat(T(6,2:end));
 s6 = cell2mat(T(7,2:end));
 
+figure();
 fig = errorbar(t_visit,cumsum(s0),[0 0 0 0 0 0 0 0.2],'Marker','o');
 hold on
 plot(t_visit,cumsum(s1),'Marker','o');
@@ -127,7 +164,9 @@ legend({'s0','s1','s2','s3','s4','s5','s6'},'location','southwest')
 xlim([datetime(2022,6,15) datetime(2022,10,15)])
 xlabel('Time');
 ylabel('Cumulative vertical stake displacement (m)')
-title('Vertical surface displacement (m)')
+title({'Vertical surface displacement | 20 Jun - 07 Oct 2022',plot_stamp})
+xticks(t_visit); xtickformat('dd MMM yyyy');
+grid on
 fname='Vertical surface displacement';
 saveas(fig,fullfile(plotdir,fname),'png')
 
@@ -135,101 +174,43 @@ else
     warning('Skipping subsidence plot: missing %s',subsidencefile);
 end
 
-%% Function
-
-
-function plot_cavity(gprdate,plotdir)
-
-%gprdate is a string with the date of the aquisition, ex: '20220824'
-
-path='/scratch-3/cogier/data/Rhone/GPR/';
-%plot background orthophoto
-path_photo='/scratch-3/cogier/data/Rhone/20220824_rhone_collapse_dop_cogier.tif';
-
-
-%read DEM of bedrock elevation from Grab et al 2010
-DEMfile = '/scratch-3/cogier/data/Rhone/bed/B43-03_GlacierBed.tif';
-BED = GRIDobj(DEMfile);
-corr=7; %bed elevation correction: the bedrock is underestimated by 10m at the boregole (direct measurement at the center of the cavity), we thus assume that this underestimation is uniform in the vicinity and apply a majoration of 10m
-%note on the bedrock map: the slope gradient might be respected witzh this
-%technique (5m elevation difference betwwen entrance and exit of the cavity)
-inc=0.5;
-
-if gprdate=='20220728'
-    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220728_rhone/L2/20220728_Rhone_picks.txt'], BED,corr,inc);
-elseif gprdate=='20220811'
-    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220811_rhone/L2/20220811_Rhone_picks.txt'], BED,corr,inc);
-elseif gprdate=='20220824'
-    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220824_rhone/L2/20220824_rhone_picks.txt'], BED,corr,inc);
-elseif gprdate=='20221007'
-    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20221007_rhone/L2/20221007_rhone_picks.txt'], BED,corr,inc);
-else 
-    error('No GPR aquisition for this date')
+%% Plot the same quantity for all acquisition dates.
+function plot_surveys(X,Y,Z,px,py,dates,volumes,errors,label,is3d,plotdir,name,stamp)
+fig = figure('Color','w','Position',[100 100 1400 1000]);
+layout = tiledlayout(fig,2,2,'TileSpacing','compact','Padding','compact');
+values = cellfun(@(z) z(isfinite(z)),Z,'UniformOutput',false);
+limits = [min(vertcat(values{:})),max(vertcat(values{:}))];
+if limits(1)==limits(2), limits(2)=limits(1)+1; end
+xlimits = [min(cellfun(@(x) min(x(:)),X)),max(cellfun(@(x) max(x(:)),X))];
+ylimits = [min(cellfun(@(y) min(y(:)),Y)),max(cellfun(@(y) max(y(:)),Y))];
+for k = 1:4
+    ax = nexttile(layout);
+    if is3d
+        surf(ax,X{k},Y{k},Z{k},'EdgeColor','none');
+        view(ax,40,30);
+        zlabel(ax,label);
+        zlim(ax,limits);
+    else
+        imagesc(ax,X{k}(1,:),Y{k}(:,1),Z{k},'AlphaData',isfinite(Z{k}));
+        set(ax,'YDir','normal');
+        hold(ax,'on');
+        scatter(ax,px{k},py{k},4,'k','filled');
+        axis(ax,'equal');
+    end
+    xlim(ax,xlimits); ylim(ax,ylimits);
+    clim(ax,limits); colormap(ax,viridis(100));
+    grid(ax,'on'); box(ax,'on');
+    xlabel(ax,'Easting (m)'); ylabel(ax,'Northing (m)');
+    ax.FontSize = 11;
+    if isempty(volumes)
+        title(ax,char(dates(k)),'FontSize',14);
+    else
+        title(ax,{char(dates(k)),sprintf('Volume: %.0f %s %.0f m^{3}', ...
+            volumes(k),char(177),errors(k))},'FontSize',14);
+    end
 end
-
-    function plot_backgroundphoto(path)
-    %plot background orthophoto
-    if ~isfile(path)
-        warning('Skipping orthophoto background: missing %s',path);
-        axis equal
-        hold on
-        return
-    end
-    [Xp, cmapp, refmat, ~]=geotiffread(path);
-      if size(Xp,3)==4
-            %get rid of X(:,:,4), otherwise mapshow will not work
-            Xp=Xp(:,:,1:3);
-        end
-    mapshow(Xp,cmapp,refmat);
-    axis equal
-    hold on
-    end
-
-%plot
-fig=figure('units','normalized','outerposition',[0 0 1 1]);%full screen figure for subplots
-subtitle_size=15;
-
-subplot(1,2,1);
-plot_backgroundphoto(path_photo)
-im = imagesc(xq(1,:),yq(:,1),roof,'AlphaData',~isnan(roof));axis equal;colorbar;
-set(gca,'YDir','normal')
-h = title(['Ice-roof thickness ',gprdate]);
-set(h,'Fontsize',subtitle_size);
-colormap(gca,flipud(viridis(100)))
-h1 = colorbar;
-%freezeColors
-hh1 = get(h1,'title');
-set(hh1,'string',['(m)'],'Fontsize',subtitle_size);
-hold on
-caxis([1 23]);
-% gpr traces
-scatter(xcav,ycav,1,th,'filled','MarkerEdgeColor','black')
-% plot minimum thickness
-[a,b] = find(roof==min(min(roof)));
-scatter(xq(1,b),yq(a,1),'filled','MarkerEdgeColor','red');
-format short g %to remove useless decimals 0 in the following
-text(2672785,1159585,['Min. thickness= ',num2str(round(min(min(roof)),2)),' m'],'BackgroundColor','w')
-xlim([2672750 2672850]);
-ylim([1159580 1159660]);
-
-subplot(1,2,2);
-plot_backgroundphoto(path_photo)
-im = imagesc(xq(1,:),yq(:,1),cavity,'AlphaData',~isnan(cavity));axis equal;colorbar;
-set(gca,'YDir','normal')
-h = title(['Cavity height ',gprdate]);
-set(h,'Fontsize',subtitle_size);
-h = colorbar;
-hh = get(h,'title');
-set(hh,'string',['(m)'],'Fontsize',subtitle_size);
-colormap(gca,viridis(100))
-hold on
-caxis([0 15]);
-% gpr traces
-scatter(xcav,ycav,1,'filled','MarkerEdgeColor','black')
-text(2672785,1159585,['Cavity vol.= ',num2str(v),' ',char(177),' ',num2str(v_err),' m^3'],'BackgroundColor','w')
-xlim([2672750 2672850]);
-ylim([1159580 1159660]);
-
-sgtitle(gprdate) 
-saveas(fig,fullfile(plotdir,gprdate),'png')
+cb = colorbar(ax); cb.Layout.Tile = 'east'; cb.Label.String = label;
+title(layout,label,'FontSize',18);
+xlabel(layout,stamp,'FontSize',10);
+exportgraphics(fig,fullfile(plotdir,[name,'.png']),'Resolution',180);
 end
