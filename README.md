@@ -1,4 +1,6 @@
-# Rhone cavity
+# Rhone subglacial cavity
+
+These are unpublished data presented in Hosli et al., 2025. Subglacial cavity collapses on Swiss glaciers: Spatiotemporal distribution and mass loss contribution. Journal of Glaciology.
 
 GPR acquisition dates over the cavity: 28.07.2022, 11.08.2022, 24.08.2022 and 07.10.2022.
 
@@ -12,3 +14,5 @@ Run `cavity_plot.m` in MATLAB. Outputs are saved in `/scratch-3/cogier/data/Rhon
 Coordinates are Swiss LV95; lengths are in metres. The model uses a 0.5 m grid and a +7 m bed correction to match borehole measurements.
 
 GPR data are found in S:\glazio\projects\88018-VAW_Rhone_collapse_feature\03_data\9_GPR. Bedrock elevation map is found in Grab et al., 2021. 
+
+The WPOF rupture notebook and its checkpoint were removed; this repository focuses on the MATLAB cavity model and datasets.
