@@ -7,15 +7,19 @@ clear all
 %initPar = read_init();
 %defaultdir = initPar.lastSgyFile; %inspired by segy processing (that is why segy is still mentionned here)
 %[fname,pname]=uigetfile({'*picks.txt'},'Choose txt file, ...',defaultdir,'MultiSelect','off'); %add 'pwd' instead of defaultdir if troubles
-path='C:/Users/christophe/Desktop/home/projects/2022_Rhone_cavity/';
-%plot background orthophoto
+path='/scratch-3/cogier/data/Rhone/GPR/';
+outputdir='/scratch-3/cogier/data/Rhone/cavity/';
+plotdir=fullfile(outputdir,'plot');
+if ~isfolder(plotdir), mkdir(plotdir); end
+addpath(genpath('/scratch-3/cogier/topotoolbox3/toolbox'));
+addpath('/scratch-3/cogier/gprglaz_co/gprglaz_co/gpr_supplement'); % viridis colormap
 
  
 
 %% load bedrock map
 %zbed=2210; %direct observations from borhole and within the uncertainties range of bedrock map of grab et al 2020
 %read DEM of bedrock elevation from Grab et al 2010
-DEMfile = [path,'maps/0824/RhoneBed/B43-03_glacierBed.tif'];
+DEMfile = '/scratch-3/cogier/data/Rhone/bed/B43-03_GlacierBed.tif';
 BED = GRIDobj(DEMfile);  %think to add topotoolbox in matlab path
 corr=7; %bed elevation correction: the bedrock is underestimated by 10m at the boregole (direct measurement at the center of the cavity), we thus assume that this underestimation is uniform in the vicinity and apply a majoration of 10m
 %note on the bedrock map: the slope gradient might be respected witzh this
@@ -28,9 +32,13 @@ inc=0.5;
 % 11 August
 [xcav2,ycav2,zsurf2,zcav2,th2,xq2,yq2,roof2,cavity2,h2,v2,v_err2] = cavity3D([path,'20220811_rhone/L2/20220811_Rhone_picks.txt'], BED,corr,inc);
 % 24 August
-[xcav3,ycav3,zsurf3,zcav3,th3,xq3,yq3,roof3,cavity3,h3,v3,v_err3] = cavity3D([path,'20220824_rhone/L2/20220824_Rhone_picks.txt'], BED,corr,inc);
+[xcav3,ycav3,zsurf3,zcav3,th3,xq3,yq3,roof3,cavity3,h3,v3,v_err3] = cavity3D([path,'20220824_rhone/L2/20220824_rhone_picks.txt'], BED,corr,inc);
 % 7 October
-[xcav4,ycav4,zsurf4,zcav4,th4,xq4,yq4,roof4,cavity4,h4,v4,v_err4] = cavity3D([path,'20221007_rhone/L2/20221007_Rhone_picks.txt'], BED,corr,inc);
+[xcav4,ycav4,zsurf4,zcav4,th4,xq4,yq4,roof4,cavity4,h4,v4,v_err4] = cavity3D([path,'20221007_rhone/L2/20221007_rhone_picks.txt'], BED,corr,inc);
+
+% Save all four survey grids, picks, volumes and uncertainties before plotting.
+% xq*/yq* are mesh coordinates; cavity* is height and roof* is ice thickness.
+save(fullfile(outputdir,'cavity_model.mat'));
 
 %% plot parameters
 subtitle_size=15;
@@ -42,7 +50,7 @@ subtitle_size=15;
 %plot_cavity('20220728');
 %plot_cavity('20220811');
 %plot_cavity('20220824');
-plot_cavity('20221007');
+plot_cavity('20221007',plotdir);
 
 
 %% 3D plot cavity 
@@ -58,6 +66,8 @@ title('Cavity Height (m)')
 xlabel('Easting (m)')
 ylabel('Northing (m)')
 
+saveas(gcf,fullfile(plotdir,'20220824_cavity_height.png'));
+
 %% Roof elevation gridd:
 
 roof_elev3 = griddata(xcav3,ycav3,zcav3,xq3,yq3);
@@ -66,6 +76,9 @@ m.FaceColor = 'flat';
 hold on
 p=plot3(xcav3,ycav3,zcav3,'o','MarkerSize',1);
 
+
+saveas(gcf,fullfile(plotdir,'20220824_roof_elevation.png'));
+save(fullfile(outputdir,'cavity_model.mat'),'roof_elev3','-append');
 
 %% Plot volume times series
 
@@ -79,11 +92,13 @@ xlabel('Time');
 ylabel('Cavity volume (m^{3})')
 title('Cavity volume time series')
 fname='cavity volume time series';
-saveas(fig,[path,'plot/',fname],'png')
+saveas(fig,fullfile(plotdir,fname),'png')
 
 %% Plot subsidence
 
-T =readcell([path,'stakes_subsidence_2022.txt'],'NumHeaderLines',1);
+subsidencefile='/scratch-3/cogier/data/Rhone/stakes_subsidence_2022.txt';
+if isfile(subsidencefile)
+T =readcell(subsidencefile,'NumHeaderLines',1);
 
 t_visit = [datetime(2022,06,20),datetime(2022,7,4),datetime(2022,7,14),datetime(2022,7,28),datetime(2022,8,11),datetime(2022,8,27),datetime(2022,9,9),datetime(2022,10,7)];
 s0 = cell2mat(T(1,2:end)); %1 colomn is a header (stake number)
@@ -114,22 +129,26 @@ xlabel('Time');
 ylabel('Cumulative vertical stake displacement (m)')
 title('Vertical surface displacement (m)')
 fname='Vertical surface displacement';
-saveas(fig,[path,'plot/',fname],'png')
+saveas(fig,fullfile(plotdir,fname),'png')
+
+else
+    warning('Skipping subsidence plot: missing %s',subsidencefile);
+end
 
 %% Function
 
 
-function plot_cavity(gprdate)
+function plot_cavity(gprdate,plotdir)
 
 %gprdate is a string with the date of the aquisition, ex: '20220824'
 
-path='C:/Users/christophe/Desktop/home/projects/2022_Rhone_cavity/';
+path='/scratch-3/cogier/data/Rhone/GPR/';
 %plot background orthophoto
-path_photo=[path,'maps/0824/20220824_rhone_collapse_dop_cogier.tif'];
+path_photo='/scratch-3/cogier/data/Rhone/20220824_rhone_collapse_dop_cogier.tif';
 
 
 %read DEM of bedrock elevation from Grab et al 2010
-DEMfile = [path,'maps/0824/RhoneBed/B43-03_glacierBed.tif'];
+DEMfile = '/scratch-3/cogier/data/Rhone/bed/B43-03_GlacierBed.tif';
 BED = GRIDobj(DEMfile);
 corr=7; %bed elevation correction: the bedrock is underestimated by 10m at the boregole (direct measurement at the center of the cavity), we thus assume that this underestimation is uniform in the vicinity and apply a majoration of 10m
 %note on the bedrock map: the slope gradient might be respected witzh this
@@ -141,15 +160,21 @@ if gprdate=='20220728'
 elseif gprdate=='20220811'
     [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220811_rhone/L2/20220811_Rhone_picks.txt'], BED,corr,inc);
 elseif gprdate=='20220824'
-    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220824_rhone/L2/20220824_Rhone_picks.txt'], BED,corr,inc);
+    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20220824_rhone/L2/20220824_rhone_picks.txt'], BED,corr,inc);
 elseif gprdate=='20221007'
-    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20221007_rhone/L2/20221007_Rhone_picks.txt'], BED,corr,inc);
+    [xcav,ycav,zsurf,zcav,th,xq,yq,roof,cavity,h,v,v_err] = cavity3D([path,'20221007_rhone/L2/20221007_rhone_picks.txt'], BED,corr,inc);
 else 
     error('No GPR aquisition for this date')
 end
 
     function plot_backgroundphoto(path)
     %plot background orthophoto
+    if ~isfile(path)
+        warning('Skipping orthophoto background: missing %s',path);
+        axis equal
+        hold on
+        return
+    end
     [Xp, cmapp, refmat, ~]=geotiffread(path);
       if size(Xp,3)==4
             %get rid of X(:,:,4), otherwise mapshow will not work
@@ -206,5 +231,5 @@ xlim([2672750 2672850]);
 ylim([1159580 1159660]);
 
 sgtitle(gprdate) 
-saveas(fig,[path,'plot/',gprdate],'png')
+saveas(fig,fullfile(plotdir,gprdate),'png')
 end
