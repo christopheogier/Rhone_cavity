@@ -15,4 +15,4 @@ Coordinates are Swiss LV95; lengths are in metres. The model uses a 0.5 m grid a
 
 GPR data are found in S:\glazio\projects\88018-VAW_Rhone_collapse_feature\03_data\9_GPR. Bedrock elevation map is found in Grab et al., 2021. 
 
-The WPOF rupture notebook and its checkpoint were removed; this repository focuses on the MATLAB cavity model and datasets.
+
